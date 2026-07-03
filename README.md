@@ -215,7 +215,8 @@ chimera/
 ├── tsp.py               # commesso viaggiatore + solver esatto Held-Karp
 ├── main.py              # motore da CLI
 ├── serve.py             # avvia l'osservatorio
-└── benchmark.py         # benchmark Feynman
+├── benchmark.py         # benchmark Feynman
+└── probe.py             # sonda: misura la struttura dei problemi
 ```
 
 ---
@@ -227,9 +228,13 @@ chimera/
 - **osservatorio 3D** ✓ — l'albero genealogico nel tempo; ambienti Feynman
   agganciati alla dashboard.
 - **enigmi combinatori** ✓ — stesso motore su frase, criptaritmo, regine, TSP.
-- **prossimo** — CHIMERA come *sonda della struttura dei problemi*: misurare
-  ruggedness, densità di gradiente e ingannevolezza per costruire una
-  tassonomia empirica della risolvibilità.
+- **sonda dei problemi** ✓ — `python -m chimera.probe`: usa il motore come
+  *strumento di misura* del paesaggio di un problema (ruggedness normalizzata,
+  densità di gradiente, neutralità, tasso di trappole), verso una **tassonomia
+  empirica della risolvibilità**. Non "risolve", *misura*.
+- **prossimo** — allargare la mappa (più problemi ed encoding), normalizzare i
+  confronti cross-encoding, e mettere in relazione la struttura misurata con la
+  velocità di convergenza del motore.
 - **visione** — meta-evoluzione: CHIMERA che riprogetta i propri mutatori,
   selettori e traduttori — evolve il proprio processo evolutivo.
 
