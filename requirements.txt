@@ -1,0 +1,9 @@
+# CHIMERA v0.1 - dipendenze minime (gira su un normale PC, senza GPU)
+numpy>=1.26
+
+# Prossime fasi (non ancora usate):
+# torch          # solo dove servira' un substrato "rete neurale"
+# networkx       # substrato "grafo"
+# fastapi        # API locale per la visualizzazione
+# uvicorn        # server per FastAPI
+# duckdb         # archivio piu' veloce a grande scala

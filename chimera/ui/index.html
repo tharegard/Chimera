@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>CHIMERA — Osservatorio</title>
+<style>
+  :root{
+    --bg:#0a0d14; --panel:#121722; --panel2:#0e131c; --line:#1e2735;
+    --txt:#e7edf5; --muted:#8394ab; --accent:#4dd6c1; --accent2:#7c9cff;
+    --warn:#ffb454; --good:#5ee0a0; --bad:#ff6b81;
+    --Alpha:#7c9cff; --Beta:#ffb454; --Gamma:#5ee0a0; --Delta:#ff6b81;
+    --f-expression:#7c9cff; --f-vector:#ff9f43; --f-mlp:#5ee0a0;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);
+       font:14px/1.5 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+  header{display:flex;align-items:center;gap:20px;padding:14px 22px;
+         background:linear-gradient(180deg,#131a26,#0c1119);border-bottom:1px solid var(--line);
+         position:sticky;top:0;z-index:10;flex-wrap:wrap}
+  .brand{font-weight:800;letter-spacing:3px;font-size:20px}
+  .brand small{display:block;font-weight:400;letter-spacing:1px;font-size:10px;color:var(--muted)}
+  .pill{background:var(--panel);border:1px solid var(--line);border-radius:20px;
+        padding:5px 12px;font-size:12px;color:var(--muted)}
+  .pill b{color:var(--txt)}
+  .spacer{flex:1}
+  button{background:var(--panel);color:var(--txt);border:1px solid var(--line);
+         border-radius:8px;padding:7px 14px;cursor:pointer;font-size:13px;transition:.15s}
+  button:hover{border-color:var(--accent);color:var(--accent)}
+  button.primary{background:var(--accent);color:#062018;border-color:var(--accent);font-weight:700}
+  button.primary:hover{filter:brightness(1.1);color:#062018}
+  input[type=range]{accent-color:var(--accent)}
+  main{display:grid;grid-template-columns:1.3fr 1fr;gap:16px;padding:16px 22px;max-width:1500px;margin:0 auto}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px}
+  .card h3{margin:0 0 10px;font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);font-weight:600}
+  .full{grid-column:1 / -1}
+  canvas{width:100%;display:block}
+  .conts{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .cont{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:12px;border-top:3px solid var(--c)}
+  .cont .name{font-weight:700;letter-spacing:1px;color:var(--c)}
+  .cont .row{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-top:3px}
+  .cont .row b{color:var(--txt)}
+  .hist{display:flex;align-items:flex-end;gap:2px;height:38px;margin-top:8px}
+  .hist span{flex:1;background:var(--c);opacity:.55;border-radius:2px 2px 0 0;min-height:1px}
+  .champ .struct{font-family:ui-monospace,Consolas,monospace;font-size:12px;color:var(--accent);
+                 background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:10px;
+                 word-break:break-all;margin-top:6px;max-height:120px;overflow:auto}
+  .champ .meta{display:flex;gap:16px;flex-wrap:wrap;margin-top:8px;font-size:12px;color:var(--muted)}
+  .champ .meta b{color:var(--txt)}
+  .badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700}
+  .badge.win{background:rgba(94,224,160,.16);color:var(--good)}
+  .badge.no{background:rgba(131,148,171,.16);color:var(--muted)}
+  .events{max-height:260px;overflow:auto}
+  .ev{display:flex;gap:10px;padding:6px 0;border-bottom:1px solid var(--line);font-size:12.5px}
+  .ev .k{flex:0 0 78px;text-transform:uppercase;font-size:10px;letter-spacing:1px;font-weight:700}
+  .ev.campione .k{color:var(--good)} .ev.migrazione .k{color:var(--accent2)}
+  .ev.genesi .k{color:var(--warn)} .ev.metamorfosi .k{color:#ff9f43}
+  .ev.apprendimento .k{color:#4dd6c1} .ev .k{color:var(--muted)}
+  .forms{display:flex;gap:3px;height:8px;margin-top:8px;border-radius:4px;overflow:hidden}
+  .forms i{display:block;height:100%}
+  .flegend{display:flex;gap:12px;font-size:10.5px;color:var(--muted);margin-top:6px}
+  .flegend b{color:var(--txt);font-weight:600}
+  .ev .t{color:var(--muted)} .ev .t b{color:var(--txt)}
+  .lin{max-height:340px;overflow:auto;font-family:ui-monospace,Consolas,monospace;font-size:11.5px}
+  .lin div{padding:3px 0;border-bottom:1px dashed var(--line);color:var(--muted);white-space:nowrap}
+  .lin .o{display:inline-block;width:96px;color:var(--accent2)}
+  .lin b{color:var(--txt)}
+  .legend{display:flex;gap:16px;font-size:11px;color:var(--muted);margin-bottom:6px}
+  .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;vertical-align:middle}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">CHIMERA<small>osservatorio dell'evoluzione</small></div>
+  <div class="pill">gen <b id="gen">0</b>/<span id="maxgen">—</span></div>
+  <div class="pill">ambiente <b id="env">—</b></div>
+  <div class="pill">SOTA <b id="sota">—</b></div>
+  <div class="pill">miglior fitness <b id="gbest">—</b></div>
+  <div class="pill" id="formsPill">forme —</div>
+  <div class="spacer"></div>
+  <a href="/albero" style="text-decoration:none"><button title="Albero evolutivo 3D">🌳 Albero 3D</button></a>
+  <button class="primary" id="btnStart">▶ Avvia</button>
+  <button id="btnPause">⏸ Pausa</button>
+  <button id="btnReset">⟲ Reset</button>
+  <div class="pill">velocità <input type="range" id="speed" min="0" max="1" step="0.05" value="0.75"></div>
+</header>
+
+<main>
+  <section class="card">
+    <h3>Ambiente — verità vs campione</h3>
+    <div class="legend">
+      <span><i class="dot" style="background:var(--muted)"></i><span id="lblTruth">bersaglio</span></span>
+      <span><i class="dot" style="background:var(--accent)"></i><span id="lblPred">predizione del miglior concetto</span></span>
+    </div>
+    <canvas id="curve" height="260"></canvas>
+  </section>
+
+  <section class="card">
+    <h3>Miglior fitness nel tempo</h3>
+    <canvas id="hist" height="120"></canvas>
+    <h3 style="margin-top:14px">Archivio evolutivo</h3>
+    <div class="champ meta" id="arch"></div>
+  </section>
+
+  <section class="card full">
+    <h3>Atlante dei concetti — lo spazio delle idee, per comportamento</h3>
+    <div class="legend">
+      <span><i class="dot" style="background:var(--f-expression)"></i>programma</span>
+      <span><i class="dot" style="background:var(--f-vector)"></i>vettore</span>
+      <span><i class="dot" style="background:var(--f-mlp)"></i>rete neurale</span>
+      <span><i class="dot" style="background:#fff;box-shadow:0 0 0 2px var(--bad)"></i>bersaglio</span>
+      <span><i class="dot" style="background:var(--accent);box-shadow:0 0 0 2px #fff"></i>campione</span>
+      <span style="color:var(--muted)">ogni punto è un concetto vivo; vicini = si comportano allo stesso modo</span>
+    </div>
+    <canvas id="atlas" height="340"></canvas>
+  </section>
+
+  <section class="card full">
+    <h3>Continenti — 4 matematiche che evolvono in parallelo</h3>
+    <div class="flegend">forme:
+      <span><i class="dot" style="background:var(--f-expression)"></i>programma</span>
+      <span><i class="dot" style="background:var(--f-vector)"></i>vettore</span>
+      <span><i class="dot" style="background:var(--f-mlp)"></i>rete neurale</span>
+    </div>
+    <div class="conts" id="conts"></div>
+  </section>
+
+  <section class="card champ">
+    <h3>Miglior concetto (campione)</h3>
+    <div class="struct" id="struct">—</div>
+    <div class="meta" id="champmeta"></div>
+    <button id="btnLin" style="margin-top:12px">Mostra genealogia ▾</button>
+    <div class="lin" id="lin" style="display:none;margin-top:10px"></div>
+  </section>
+
+  <section class="card">
+    <h3>Traduttore — dal concetto al linguaggio umano</h3>
+    <div id="trHead" style="font-size:15px;font-weight:600;margin-bottom:4px">Premi «Traduci il campione».</div>
+    <div id="trSurprise" style="color:var(--warn);font-size:12.5px;margin-bottom:8px"></div>
+    <ul id="trBullets" style="margin:0;padding-left:18px;color:var(--muted);font-size:13px"></ul>
+    <button id="btnTr" style="margin-top:12px">Traduci il campione ▾</button>
+  </section>
+
+  <section class="card">
+    <h3>Eventi — nascite, campioni, migrazioni</h3>
+    <div class="events" id="events"></div>
+  </section>
+</main>
+
+<script>
+const $ = s => document.querySelector(s);
+let championId = null, linOpen = false;
+
+async function control(action, value){
+  await fetch('/api/control',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({action,value})});
+}
+$('#btnStart').onclick = ()=>control('start');
+$('#btnPause').onclick = ()=>control('pause');
+$('#btnReset').onclick = ()=>{ linOpen=false; $('#lin').style.display='none'; control('reset'); };
+// slider: 0 = veloce (delay 0), 1 = lento (delay ~0.8s). Invertito per intuitività.
+$('#speed').oninput = e => control('speed', (1 - parseFloat(e.target.value)) * 0.8);
+
+$('#btnLin').onclick = async ()=>{
+  linOpen = !linOpen;
+  $('#lin').style.display = linOpen ? 'block' : 'none';
+  $('#btnLin').textContent = linOpen ? 'Nascondi genealogia ▴' : 'Mostra genealogia ▾';
+  if(linOpen && championId!=null) loadLineage(championId);
+};
+let trOpen = false;
+$('#btnTr').onclick = async ()=>{
+  trOpen = !trOpen;
+  $('#btnTr').textContent = trOpen ? 'Aggiorna traduzione ⟳' : 'Traduci il campione ▾';
+  if(trOpen) loadTranslation();
+};
+async function loadTranslation(){
+  const t = await (await fetch('/api/translate')).json();
+  $('#trHead').textContent = t.headline || '—';
+  $('#trSurprise').textContent = t.surprise || '';
+  $('#trBullets').innerHTML = (t.bullets||[]).map(b=>`<li style="margin:4px 0">${b}</li>`).join('');
+}
+
+async function loadLineage(id){
+  const rows = await (await fetch('/api/lineage/'+id)).json();
+  $('#lin').innerHTML = rows.map(r=>
+    `<div><span class="o">${r.origin}</span> #${r.id} `+
+    `<b>fit ${r.fitness}</b> ${r.parents?('← '+r.parents):''}<br>`+
+    `<span style="color:var(--accent)">${r.structure}</span></div>`).join('');
+}
+
+// ---- disegno canvas ----
+function fit(cv){ const r=cv.getBoundingClientRect(); const dpr=devicePixelRatio||1;
+  cv.width=r.width*dpr; cv.height=cv.height*dpr; const c=cv.getContext('2d');
+  c.setTransform(dpr,0,0,dpr,0,0); return [c, r.width, cv.height/dpr]; }
+
+function drawCurve(cv, x, target, pred){
+  const [c,W,H]=fit(cv); c.clearRect(0,0,W,H);
+  const all=target.concat(pred); let lo=Math.min(...all), hi=Math.max(...all);
+  if(hi-lo<1e-6){hi+=1;lo-=1;} const pad=(hi-lo)*0.08; lo-=pad; hi+=pad;
+  const xn=v=>((v-x[0])/(x[x.length-1]-x[0]))*(W-40)+30;
+  const yn=v=>H-20-((v-lo)/(hi-lo))*(H-34);
+  c.strokeStyle='#1e2735'; c.lineWidth=1; c.beginPath();
+  c.moveTo(30,yn(0)); c.lineTo(W-10,yn(0)); c.stroke();
+  const plot=(arr,col,w)=>{c.strokeStyle=col;c.lineWidth=w;c.beginPath();
+    arr.forEach((v,i)=>{const X=xn(x[i]),Y=yn(v); i?c.lineTo(X,Y):c.moveTo(X,Y);});c.stroke();};
+  plot(target,'#8394ab',2); plot(pred,'#4dd6c1',2.4);
+}
+function drawHist(cv, hs){
+  const [c,W,H]=fit(cv); c.clearRect(0,0,W,H);
+  if(!hs.length){return;} let lo=Math.min(...hs), hi=Math.max(...hs);
+  if(hi-lo<1e-6){hi+=1;lo-=1;} const pad=(hi-lo)*0.1; lo-=pad; hi+=pad;
+  const xn=i=>(i/(hs.length-1))*(W-20)+10, yn=v=>H-14-((v-lo)/(hi-lo))*(H-24);
+  c.strokeStyle='#4dd6c1'; c.lineWidth=2; c.beginPath();
+  hs.forEach((v,i)=>{const X=xn(i),Y=yn(v); i?c.lineTo(X,Y):c.moveTo(X,Y);}); c.stroke();
+  c.fillStyle='#5ee0a0'; const lx=xn(hs.length-1),ly=yn(hs[hs.length-1]);
+  c.beginPath(); c.arc(lx,ly,3,0,7); c.fill();
+}
+const FCOL={expression:'#7c9cff',vector:'#ff9f43',mlp:'#5ee0a0'};
+function drawAtlas(cv, atlas){
+  const [c,W,H]=fit(cv); c.clearRect(0,0,W,H);
+  if(!atlas||!atlas.points) return;
+  let [x0,x1,y0,y1]=atlas.bounds;
+  const px=(x1-x0)*0.08||1, py=(y1-y0)*0.08||1; x0-=px;x1+=px;y0-=py;y1+=py;
+  const M=26, xn=v=>M+((v-x0)/(x1-x0))*(W-2*M), yn=v=>H-M-((v-y0)/(y1-y0))*(H-2*M);
+  const cl=(v,a,b)=>Math.max(a,Math.min(b,v));
+  // nuvola di concetti
+  for(const p of atlas.points){
+    c.globalAlpha = p.win?0.85:0.4;
+    c.fillStyle = FCOL[p.form]||'#889';
+    c.beginPath(); c.arc(cl(xn(p.x),4,W-4),cl(yn(p.y),4,H-4), p.win?2.6:1.8, 0, 7); c.fill();
+  }
+  c.globalAlpha=1;
+  // bersaglio (dove le idee dovrebbero convergere)
+  const tx=cl(xn(atlas.target[0]),8,W-8), ty=cl(yn(atlas.target[1]),8,H-8);
+  c.strokeStyle='#ff6b81'; c.lineWidth=2.5; c.beginPath(); c.arc(tx,ty,9,0,7); c.stroke();
+  c.beginPath(); c.moveTo(tx-13,ty); c.lineTo(tx+13,ty); c.moveTo(tx,ty-13); c.lineTo(tx,ty+13); c.stroke();
+  // campione
+  const cx=cl(xn(atlas.champion[0]),8,W-8), cy=cl(yn(atlas.champion[1]),8,H-8);
+  c.fillStyle='#4dd6c1'; c.strokeStyle='#fff'; c.lineWidth=2;
+  c.beginPath(); c.arc(cx,cy,5,0,7); c.fill(); c.stroke();
+}
+
+// ---- ciclo di aggiornamento ----
+async function tick(){
+  let s; try{ s=await (await fetch('/api/state')).json(); }catch(e){ return; }
+  if(!s||!s.champion) return;
+  $('#gen').textContent=s.generation; $('#maxgen').textContent=s.max_generations;
+  $('#env').textContent=s.environment; $('#sota').textContent=s.sota_fitness;
+  $('#gbest').textContent=s.global_best;
+  if(s.curve_labels){ $('#lblTruth').textContent=s.curve_labels[0]; $('#lblPred').textContent=s.curve_labels[1]; }
+  $('#btnStart').textContent = s.running ? '▶ In corso…' : '▶ Avvia';
+
+  drawCurve($('#curve'), s.curve.x, s.curve.target, s.curve.pred);
+  drawHist($('#hist'), s.best_history);
+  drawAtlas($('#atlas'), s.atlas);
+  if(trOpen && s.running && s.generation % 3 === 0) loadTranslation();
+
+  const a=s.archive;
+  $('#arch').innerHTML =
+    `<span>concetti registrati <b>${a.total.toLocaleString('it')}</b></span>`+
+    `<span>battono SOTA <b style="color:var(--good)">${a.beat_sota.toLocaleString('it')}</b></span>`;
+
+  const formsBar = f => {
+    const tot=Math.max(1,(f.expression||0)+(f.vector||0)+(f.mlp||0));
+    return ['expression','vector','mlp'].map(k=>
+      `<i style="width:${100*(f[k]||0)/tot}%;background:var(--f-${k})"></i>`).join('');
+  };
+  $('#conts').innerHTML = s.continents.map(ct=>{
+    const mx=Math.max(1,...ct.histogram);
+    const bars=ct.histogram.map(v=>`<span style="height:${100*v/mx}%"></span>`).join('');
+    const f=ct.forms||{};
+    return `<div class="cont" style="--c:var(--${ct.name})">
+      <div class="name">${ct.name}</div>
+      <div class="row"><span>popolazione</span><b>${ct.size}</b></div>
+      <div class="row"><span>miglior fitness</span><b>${ct.best_fitness}</b></div>
+      <div class="row"><span>battono SOTA</span><b>${ct.beats_sota}</b></div>
+      <div class="hist">${bars}</div>
+      <div class="forms">${formsBar(f)}</div>
+      <div class="row" style="margin-top:6px"><span>forme</span>
+        <b>${f.expression||0} prog · ${f.vector||0} vett · ${f.mlp||0} rete</b></div>
+    </div>`;
+  }).join('');
+
+  const ft=s.forms_total||{};
+  $('#formsPill').innerHTML=`forme <b>${ft.expression||0}</b> prog · `+
+    `<b>${ft.vector||0}</b> vett · <b>${ft.mlp||0}</b> rete`;
+
+  const ch=s.champion; championId=ch.id;
+  $('#struct').textContent=ch.structure;
+  const formName={expression:'programma',vector:'vettore',mlp:'rete neurale'}[ch.form]||ch.form;
+  $('#champmeta').innerHTML=
+    `<span>id <b>#${ch.id}</b></span><span>continente <b>${ch.continent}</b></span>`+
+    `<span>forma <b style="color:var(--f-${ch.form})">${formName}</b></span>`+
+    `<span>gen <b>${ch.generation}</b></span><span>fitness <b>${ch.fitness}</b></span>`+
+    `<span>nodi <b>${ch.complexity}</b></span>`+
+    (ch.beats_sota?'<span class="badge win">batte lo stato dell\'arte</span>':'<span class="badge no">non ancora</span>');
+  if(linOpen && championId!=null) loadLineage(championId);
+
+  $('#events').innerHTML = s.events.map(e=>
+    `<div class="ev ${e.kind}"><span class="k">${e.kind}</span>`+
+    `<span class="t">${e.continent?('<b>'+e.continent+'</b> '):''}${e.text}</span></div>`).join('');
+}
+setInterval(tick, 700); tick();
+</script>
+</body>
+</html>

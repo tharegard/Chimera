@@ -1,0 +1,11 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.sqlite
+*.sqlite-journal
+*.log
+.DS_Store
+.vscode/
+.idea/
+.claude/

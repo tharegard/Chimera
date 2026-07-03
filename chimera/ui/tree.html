@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>CHIMERA — Albero evolutivo 3D</title>
+<style>
+  :root{
+    --bg:#070a10; --panel:#121722cc; --line:#1e2735;
+    --txt:#e7edf5; --muted:#8394ab; --accent:#4dd6c1;
+    --f-expression:#7c9cff; --f-vector:#ff9f43; --f-mlp:#5ee0a0;
+    --gold:#ffd45e; --bad:#ff6b81;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--txt);
+       font:14px/1.5 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+  #scene{position:fixed;inset:0}
+  .overlay{position:fixed;pointer-events:none}
+  header{top:0;left:0;right:0;display:flex;align-items:center;gap:14px;padding:12px 18px;
+         background:linear-gradient(180deg,#0a0f18ee,#0a0f1800);z-index:5}
+  header *{pointer-events:auto}
+  .brand{font-weight:800;letter-spacing:3px;font-size:18px}
+  .brand small{display:block;font-weight:400;letter-spacing:1px;font-size:10px;color:var(--muted)}
+  .pill{background:var(--panel);border:1px solid var(--line);border-radius:20px;
+        padding:5px 12px;font-size:12px;color:var(--muted);backdrop-filter:blur(6px)}
+  .pill b{color:var(--txt)}
+  .spacer{flex:1}
+  a.btn,button.btn{background:var(--panel);color:var(--txt);border:1px solid var(--line);
+         border-radius:8px;padding:7px 12px;cursor:pointer;font-size:13px;text-decoration:none;
+         backdrop-filter:blur(6px);transition:.15s;display:inline-block}
+  a.btn:hover,button.btn:hover{border-color:var(--accent);color:var(--accent)}
+  button.btn.on{border-color:var(--accent);color:var(--accent);background:#132b28cc}
+  .legend{left:18px;bottom:16px;z-index:5;background:var(--panel);border:1px solid var(--line);
+          border-radius:12px;padding:12px 14px;font-size:12px;line-height:1.9;backdrop-filter:blur(6px)}
+  .legend .dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:7px;vertical-align:middle}
+  .legend .ln{display:inline-block;width:16px;height:0;border-top:2px solid;margin-right:7px;vertical-align:middle}
+  .legend h4{margin:0 0 6px;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);font-weight:600}
+  .hint{right:18px;bottom:16px;z-index:5;color:var(--muted);font-size:11.5px;text-align:right;max-width:260px}
+  #champ{right:18px;top:64px;z-index:5;background:var(--panel);border:1px solid var(--line);
+         border-radius:12px;padding:12px 14px;font-size:12px;max-width:280px;backdrop-filter:blur(6px)}
+  #champ h4{margin:0 0 6px;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--gold);font-weight:700}
+  #champ .struct{font-family:ui-monospace,Consolas,monospace;color:var(--accent);word-break:break-all;
+                 max-height:80px;overflow:auto;margin-top:4px}
+  #err{position:fixed;inset:0;display:none;place-items:center;background:#070a10;z-index:20;padding:40px;text-align:center}
+  #err div{max-width:520px;color:var(--muted)} #err b{color:var(--txt)}
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+}}
+</script>
+</head>
+<body>
+<div id="scene"></div>
+
+<header class="overlay">
+  <div class="brand">CHIMERA<small>albero evolutivo · lo spazio delle idee nel tempo</small></div>
+  <div class="pill">gen <b id="gen">0</b>/<span id="maxgen">—</span></div>
+  <div class="pill">nodi <b id="nnodes">0</b></div>
+  <div class="spacer"></div>
+  <button class="btn on" id="btnFollow" title="La camera sale mentre l'albero cresce">⤴ Segui la cima</button>
+  <button class="btn on" id="btnSpin" title="Rotazione automatica">↻ Ruota</button>
+  <a class="btn" href="/">← Osservatorio</a>
+</header>
+
+<div id="champ" class="overlay">
+  <h4>★ Stirpe del campione</h4>
+  <div id="champText">In attesa dell'evoluzione…</div>
+  <div class="struct" id="champStruct"></div>
+</div>
+
+<div class="legend overlay">
+  <h4>Forme (nodi)</h4>
+  <div><i class="dot" style="background:var(--f-expression)"></i>programma</div>
+  <div><i class="dot" style="background:var(--f-vector)"></i>vettore</div>
+  <div><i class="dot" style="background:var(--f-mlp)"></i>rete neurale</div>
+  <div style="margin-top:6px"><i class="dot" style="background:#fff;box-shadow:0 0 0 2px var(--accent)"></i>batte lo stato dell'arte</div>
+  <h4 style="margin-top:10px">Rami (genealogia)</h4>
+  <div><i class="ln" style="border-color:#3a4a63"></i>discendenza / mutazione</div>
+  <div><i class="ln" style="border-color:var(--f-vector)"></i>migrazione (salto)</div>
+  <div><i class="ln" style="border-color:var(--gold)"></i>stirpe del campione</div>
+  <div style="margin-top:6px"><i class="ln" style="border-color:var(--bad)"></i>colonna = bersaglio</div>
+</div>
+
+<div class="hint overlay">
+  altezza = tempo (generazioni) · piano = comportamento (PCA)<br>
+  trascina per ruotare · rotellina per zoom · tasto destro per spostare
+</div>
+
+<div id="err"><div><b>Impossibile caricare Three.js.</b><br>
+  Questa pagina carica la libreria 3D da unpkg.com: serve una connessione a Internet.<br>
+  L'<a href="/" style="color:var(--accent)">osservatorio 2D</a> funziona comunque offline.</div></div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+const $ = s => document.querySelector(s);
+window.addEventListener('error', e => { if(String(e.message).includes('import')||e.filename?.includes('unpkg')) $('#err').style.display='grid'; });
+
+// ---- costanti di layout ------------------------------------------------ //
+const SX = 55;      // semi-lato del piano dei comportamenti
+const HZ = 120;     // altezza massima (tempo) dell'albero
+const FCOL = { expression:0x7c9cff, vector:0xff9f43, mlp:0x5ee0a0 };
+
+// ---- scena ------------------------------------------------------------- //
+const host = $('#scene');
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.setSize(innerWidth, innerHeight);
+host.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x070a10);
+scene.fog = new THREE.FogExp2(0x070a10, 0.0022);
+
+const camera = new THREE.PerspectiveCamera(55, innerWidth/innerHeight, 0.1, 2000);
+camera.position.set(78, 52, 104);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true; controls.dampingFactor = 0.08;
+controls.autoRotate = true; controls.autoRotateSpeed = 0.3;
+controls.target.set(0, HZ*0.28, 0);
+
+// piano-terra (generazione 0) + griglia + asse del tempo
+const grid = new THREE.GridHelper(SX*2.2, 22, 0x1e2735, 0x131a26);
+scene.add(grid);
+const axisMat = new THREE.LineBasicMaterial({color:0x2a3446});
+scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(
+  [new THREE.Vector3(0,0,0), new THREE.Vector3(0,HZ,0)]), axisMat));
+
+scene.add(new THREE.AmbientLight(0xffffff, 0.9));
+
+// ---- stato dell'albero (append-only) ----------------------------------- //
+let nodes = [], edges = [];
+let haveNodes = 0, haveEdges = 0;
+let bounds = [-1,1,-1,1], maxGen = 1, targetXY = [0,0];
+let champPath = [], champId = null;
+
+function mapPos(n){
+  const [x0,x1,y0,y1] = bounds;
+  const nx = (n.x - x0)/((x1-x0)||1);
+  const ny = (n.y - y0)/((y1-y0)||1);
+  return new THREE.Vector3((nx-0.5)*2*SX, (n.gen/(maxGen||1))*HZ, (ny-0.5)*2*SX);
+}
+
+// oggetti ricostruibili
+let ptsAll=null, ptsWin=null, lines=null, champLine=null, targetCol=null;
+const EDGE_COL = { descent:0x3a4a63, recombination:0x4dd6c1, metamorphosis:0xff9f43, migration:0xffb454 };
+
+function disposeObj(o){ if(!o) return; scene.remove(o); o.geometry?.dispose(); o.material?.dispose(); }
+
+function rebuildNodes(){
+  disposeObj(ptsAll); disposeObj(ptsWin);
+  const posA=[], colA=[], posW=[], colW=[];
+  const c = new THREE.Color();
+  for(const n of nodes){
+    const p = mapPos(n);
+    c.setHex(FCOL[n.form]||0x8899aa);
+    if(n.win){
+      posW.push(p.x,p.y,p.z); c.clone().lerp(new THREE.Color(0xffffff),0.35);
+      colW.push(c.r,c.g,c.b);
+    } else {
+      posA.push(p.x,p.y,p.z); colA.push(c.r,c.g,c.b);
+    }
+  }
+  ptsAll = makePoints(posA, colA, 3.2, 0.9);
+  ptsWin = makePoints(posW, colW, 7.0, 1.0);
+  scene.add(ptsAll); scene.add(ptsWin);
+}
+function makePoints(pos, col, size, opacity){
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos,3));
+  g.setAttribute('color', new THREE.Float32BufferAttribute(col,3));
+  const m = new THREE.PointsMaterial({size, vertexColors:true, transparent:true,
+    opacity, sizeAttenuation:true, depthWrite:false});
+  return new THREE.Points(g, m);
+}
+
+function rebuildEdges(){
+  disposeObj(lines);
+  const pos=[], col=[]; const c=new THREE.Color();
+  for(const e of edges){
+    const a = nodes[e[0]], b = nodes[e[1]];
+    if(!a||!b) continue;
+    const pa=mapPos(a), pb=mapPos(b);
+    pos.push(pa.x,pa.y,pa.z, pb.x,pb.y,pb.z);
+    c.setHex(EDGE_COL[e[2]]||0x3a4a63);
+    const dim = (e[2]==='descent')?0.5:1.0;
+    col.push(c.r*dim,c.g*dim,c.b*dim, c.r,c.g,c.b);
+  }
+  const g=new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos,3));
+  g.setAttribute('color', new THREE.Float32BufferAttribute(col,3));
+  lines = new THREE.LineSegments(g, new THREE.LineBasicMaterial({
+    vertexColors:true, transparent:true, opacity:0.6, depthWrite:false}));
+  scene.add(lines);
+}
+
+function rebuildChampion(){
+  disposeObj(champLine);
+  if(champPath.length < 2) return;
+  const pts = champPath.map(i => nodes[i]).filter(Boolean).map(mapPos);
+  if(pts.length < 2) return;
+  champLine = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),
+    new THREE.LineBasicMaterial({color:0xffd45e, transparent:true, opacity:0.95}));
+  scene.add(champLine);
+}
+
+function rebuildTarget(){
+  disposeObj(targetCol);
+  const [x0,x1,y0,y1] = bounds;
+  const nx = (targetXY[0]-x0)/((x1-x0)||1), ny=(targetXY[1]-y0)/((y1-y0)||1);
+  const tx=(nx-0.5)*2*SX, tz=(ny-0.5)*2*SX;
+  const g=new THREE.BufferGeometry().setFromPoints(
+    [new THREE.Vector3(tx,0,tz), new THREE.Vector3(tx,HZ,tz)]);
+  targetCol = new THREE.Line(g, new THREE.LineBasicMaterial({
+    color:0xff6b81, transparent:true, opacity:0.6}));
+  scene.add(targetCol);
+}
+
+// ---- polling incrementale ---------------------------------------------- //
+async function poll(){
+  let t; try{ t = await (await fetch(`/api/tree?since_nodes=${haveNodes}&since_edges=${haveEdges}`)).json(); }
+  catch(e){ return; }
+  if(!t) return;
+
+  // reset lato server (nuova evoluzione)?
+  if(t.total_nodes < haveNodes){ nodes=[]; edges=[]; haveNodes=0; haveEdges=0; }
+
+  bounds = t.bounds || bounds;
+  maxGen = t.max_generations || maxGen;
+  targetXY = t.target || targetXY;
+  champPath = t.champion_path || [];
+  champId = t.champion_id;
+
+  let addedN=false, addedE=false;
+  if(t.nodes && t.nodes.length){ nodes.push(...t.nodes); haveNodes=t.total_nodes; addedN=true; }
+  if(t.edges && t.edges.length){ edges.push(...t.edges); haveEdges=t.total_edges; addedE=true; }
+
+  if(addedN) rebuildNodes();
+  if(addedN || addedE) rebuildEdges();
+  rebuildChampion(); rebuildTarget();
+
+  $('#gen').textContent = t.generation ?? 0;
+  $('#maxgen').textContent = t.max_generations ?? '—';
+  $('#nnodes').textContent = nodes.length.toLocaleString('it');
+
+  const champNode = champPath.length ? nodes[champPath[0]] : null;
+  if(champNode){
+    const fn = {expression:'programma',vector:'vettore',mlp:'rete neurale'}[champNode.form]||champNode.form;
+    $('#champText').innerHTML = `#${champNode.id} · <b>${champNode.cont}</b> · `+
+      `<span style="color:#${(FCOL[champNode.form]||0x8899aa).toString(16)}">${fn}</span> · `+
+      `fitness <b>${champNode.fit}</b> · nato alla gen ${champNode.gen}`+
+      (champNode.win? ' · <span style="color:var(--accent)">batte la baseline</span>':'')+
+      `<br><span style="color:var(--muted)">stirpe visibile: ${champPath.length} antenati</span>`;
+  }
+
+  // segui la cima
+  if(follow){
+    const top = (t.generation/(maxGen||1))*HZ;
+    controls.target.lerp(new THREE.Vector3(0, top*0.6, 0), 0.05);
+  }
+}
+setInterval(poll, 1000); poll();
+
+// ---- controlli UI ------------------------------------------------------ //
+let follow = true;
+$('#btnFollow').onclick = e => { follow=!follow; e.target.classList.toggle('on',follow); };
+$('#btnSpin').onclick = e => { controls.autoRotate=!controls.autoRotate; e.target.classList.toggle('on',controls.autoRotate); };
+
+// ---- render ------------------------------------------------------------ //
+addEventListener('resize', ()=>{
+  camera.aspect = innerWidth/innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+(function loop(){ requestAnimationFrame(loop); controls.update(); renderer.render(scene,camera); })();
+</script>
+</body>
+</html>
